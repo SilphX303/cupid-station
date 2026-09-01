@@ -37,8 +37,31 @@ class CommitBody(BaseModel):
     portrait_id: str | None = None      # one of crop_ids (or inbox_ids) to mark is_portrait
 
 
+INBOX_TTL_HOURS = 24
+
+
+def _sweep_inbox() -> int:
+    """Drop analyze uploads that were never committed. Called opportunistically —
+    no scheduler needed; any visit to the Ingest page triggers it."""
+    import time
+
+    cutoff = time.time() - INBOX_TTL_HOURS * 3600
+    removed = 0
+    for f in db.INBOX_DIR.glob("*"):
+        try:
+            if f.is_file() and f.stat().st_mtime < cutoff:
+                f.unlink()
+                removed += 1
+        except OSError:
+            pass
+    if removed:
+        logger.info("inbox sweep: removed %d abandoned upload(s)", removed)
+    return removed
+
+
 @router.get("/status")
 def status():
+    _sweep_inbox()
     return {"vision_configured": extraction.configured()}
 
 
