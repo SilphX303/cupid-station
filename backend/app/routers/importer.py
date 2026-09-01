@@ -1,6 +1,6 @@
 import json
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from .. import db
 from ..models import ImportBlob
@@ -19,7 +19,13 @@ def import_blob(body: ImportBlob):
     p = body.prospect
     with db.connect() as con:
         existing = None
-        if body.match_name:
+        if body.match_id is not None:
+            existing = con.execute(
+                "SELECT * FROM prospect WHERE id = ?", (body.match_id,)
+            ).fetchone()
+            if existing is None:
+                raise HTTPException(404, f"match_id {body.match_id} not found")
+        elif body.match_name:
             existing = con.execute(
                 "SELECT * FROM prospect WHERE archived_at IS NULL AND lower(display_name) = lower(?)",
                 (body.match_name,),

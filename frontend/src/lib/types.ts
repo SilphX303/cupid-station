@@ -29,6 +29,7 @@ export interface Prospect {
   apps: string[]
   status: Status
   last_contact_at: string | null
+  next_date_at: string | null
   looking_for: string | null
   interests: string[]
   prompts: { question: string; answer: string }[]
@@ -44,6 +45,7 @@ export interface Stats {
   by_status: Record<string, number>
   active: number
   needs_attention: number
+  dates_today: { id: number; display_name: string; next_date_at: string }[]
 }
 
 export const STATUSES: Status[] = [
@@ -89,6 +91,7 @@ export interface Draft {
   prompts: { question: string; answer: string }[]
   notes: string
   conversation_summary: string | null
+  planned_date?: { on: string | null; time: string | null; venue: string | null } | null
 }
 
 export interface AnalyzeResult {

@@ -29,8 +29,14 @@ Reply with ONE JSON object and nothing else, exactly this shape:
   "interests": ["<from the profile>"],
   "prompts": [{"question": "<prompt title>", "answer": "<their answer>"}],
   "notes": "<anything else notable: bio highlights, vibe, verified badge, job, pets…>",
-  "conversation_summary": "<for chat screenshots: who spoke last, tone, open threads — else null>"
+  "conversation_summary": "<for chat screenshots: who spoke last, tone, open threads — else null>",
+  "planned_date": {"on": "<YYYY-MM-DD or null>", "time": "<HH:MM 24h or null>", "venue": "<text or null>"}
 }
+
+planned_date: fill this ONLY when the conversation shows a meetup being arranged with an
+agreed (or strongly implied) day — resolve relative dates ("Saturday", "tomorrow night")
+against the newest visible message timestamp. If no meetup is arranged, use null for all
+three fields.
 
 Which app: infer from the UI (Hinge's serif prompts and heart button; Bumble's yellow; Mattr's look) — "other" if unsure.
 Status: profile being browsed with no match visible = scouting; fresh match no chat = matched;

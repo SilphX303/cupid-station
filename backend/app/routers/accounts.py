@@ -96,4 +96,16 @@ def stats():
                AND status IN ('matched','chatting','quiet','date_planned','dating')
                AND (last_contact_at IS NULL OR last_contact_at < date('now','-3 days'))"""
         ).fetchone()["n"]
-    return {"by_status": by_status, "active": active, "needs_attention": needs_attention}
+        # RED ALERT: a date is scheduled for TODAY
+        dates_today = [
+            dict(r) for r in con.execute(
+                """SELECT id, display_name, next_date_at FROM prospect
+                   WHERE archived_at IS NULL AND next_date_at = date('now')"""
+            )
+        ]
+    return {
+        "by_status": by_status,
+        "active": active,
+        "needs_attention": needs_attention,
+        "dates_today": dates_today,
+    }

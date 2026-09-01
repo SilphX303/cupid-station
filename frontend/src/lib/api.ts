@@ -45,6 +45,7 @@ export const api = {
     req<{ ok: boolean }>(`/api/media/${mediaId}/portrait`, { method: 'POST' }),
   ingestCommit: (body: {
     prospect: Record<string, unknown>
+    match_id?: number | null
     match_name: string | null
     conversation_summary: string | null
     inbox_ids: string[]

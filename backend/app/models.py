@@ -26,6 +26,7 @@ class ProspectPatch(BaseModel):
     apps: Optional[list[str]] = None
     status: Optional[str] = None
     last_contact_at: Optional[str] = None
+    next_date_at: Optional[str] = None
     looking_for: Optional[str] = None
     interests: Optional[list[str]] = None
     prompts: Optional[list[dict[str, str]]] = None
@@ -49,9 +50,12 @@ class AppAccountIn(BaseModel):
 class ImportBlob(BaseModel):
     """The JSON blob a Claude extraction chat produces (see docs/EXTRACTION.md).
 
-    If `match_name` is set and a non-archived prospect with that display_name
-    exists, the blob updates that prospect; otherwise a new one is created.
+    If `match_id` is set, the blob updates exactly that prospect (the
+    per-profile scan flow — immune to duplicate first names). Else if
+    `match_name` is set and a non-archived prospect with that display_name
+    exists, it updates that one; otherwise a new prospect is created.
     """
+    match_id: Optional[int] = None
     match_name: Optional[str] = None
     prospect: ProspectIn
     events: list[EventIn] = []

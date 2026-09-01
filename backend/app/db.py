@@ -39,6 +39,8 @@ def _migrate(con: sqlite3.Connection) -> None:
         con.execute("ALTER TABLE prospect ADD COLUMN prompts TEXT NOT NULL DEFAULT '[]'")
     if "nickname" not in cols:
         con.execute("ALTER TABLE prospect ADD COLUMN nickname TEXT")
+    if "next_date_at" not in cols:
+        con.execute("ALTER TABLE prospect ADD COLUMN next_date_at TEXT")
     media_cols = {r["name"] for r in con.execute("PRAGMA table_info(media)")}
     if "is_portrait" not in media_cols:
         con.execute("ALTER TABLE media ADD COLUMN is_portrait INTEGER NOT NULL DEFAULT 0")

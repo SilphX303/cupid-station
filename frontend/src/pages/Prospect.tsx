@@ -15,7 +15,7 @@ function DateLog({
   onAdd,
 }: {
   events: { id: number; ts: string; payload: Record<string, unknown> }[]
-  onAdd: (payload: Record<string, unknown>) => Promise<void>
+  onAdd: (payload: Record<string, unknown>, nextDate: string | null) => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
   const [on, setOn] = useState(new Date().toISOString().slice(0, 10))
@@ -25,23 +25,28 @@ function DateLog({
   const [red, setRed] = useState('')
   const [text, setText] = useState('')
   const [next, setNext] = useState('')
+  const [nextDate, setNextDate] = useState('')
 
   async function submit() {
     if (!venue.trim()) return
-    await onAdd({
-      on,
-      venue: venue.trim(),
-      verdict,
-      green_flags: green.split(',').map((s) => s.trim()).filter(Boolean),
-      red_flags: red.split(',').map((s) => s.trim()).filter(Boolean),
-      text: text.trim(),
-      next_step: next.trim(),
-    })
+    await onAdd(
+      {
+        on,
+        venue: venue.trim(),
+        verdict,
+        green_flags: green.split(',').map((s) => s.trim()).filter(Boolean),
+        red_flags: red.split(',').map((s) => s.trim()).filter(Boolean),
+        text: text.trim(),
+        next_step: next.trim(),
+      },
+      nextDate || null,
+    )
     setVenue('')
     setGreen('')
     setRed('')
     setText('')
     setNext('')
+    setNextDate('')
     setOpen(false)
   }
 
@@ -83,9 +88,14 @@ function DateLog({
               <span className="lcars-label">How it went</span>
               <textarea className="lcars-input min-h-16" value={text} onChange={(e) => setText(e.target.value)} />
             </label>
-            <label className="flex flex-col gap-1 sm:col-span-3">
+            <label className="flex flex-col gap-1 sm:col-span-2">
               <span className="lcars-label">Next step</span>
               <input className="lcars-input" value={next} onChange={(e) => setNext(e.target.value)} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="lcars-label">Next date planned (arms red alert)</span>
+              <input type="date" className="lcars-input" value={nextDate}
+                onChange={(e) => setNextDate(e.target.value)} />
             </label>
           </div>
           <div className="flex gap-2">
@@ -125,6 +135,206 @@ function DateLog({
           <li className="text-[10px] uppercase tracking-[0.16em] text-faint">No dates logged</li>
         )}
       </ul>
+    </SystemPanel>
+  )
+}
+
+/** Google Calendar prefilled-event URL — no OAuth, opens under the user's own login. */
+export function gcalUrl(title: string, dateISO: string, time: string | null, venue: string | null): string {
+  const d = dateISO.replace(/-/g, '')
+  let dates: string
+  if (time && /^\d{2}:\d{2}$/.test(time)) {
+    const [h, m] = time.split(':').map(Number)
+    const start = `${d}T${String(h).padStart(2, '0')}${String(m).padStart(2, '0')}00`
+    const endH = (h + 2) % 24
+    const end = `${d}T${String(endH).padStart(2, '0')}${String(m).padStart(2, '0')}00`
+    dates = `${start}/${end}`
+  } else {
+    const next = new Date(dateISO + 'T00:00:00')
+    next.setDate(next.getDate() + 1)
+    dates = `${d}/${next.toISOString().slice(0, 10).replace(/-/g, '')}`
+  }
+  const params = new URLSearchParams({ action: 'TEMPLATE', text: title, dates })
+  if (venue) params.set('location', venue)
+  params.set('details', 'Logged by Cupid Station')
+  return `https://calendar.google.com/calendar/render?${params.toString()}`
+}
+
+function ScanUpdate({ prospect, onDone }: { prospect: Prospect; onDone: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const [draft, setDraft] = useState<{
+    summary: string
+    status: Status
+    last_contact_at: string
+    inbox_ids: string[]
+    planned: { on: string; time: string | null; venue: string | null } | null
+    armDate: boolean
+  } | null>(null)
+  const [msg, setMsg] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  async function scan(files: FileList | null) {
+    if (!files?.length) return
+    setBusy(true)
+    setMsg('')
+    try {
+      const r = await api.ingestAnalyze(Array.from(files))
+      const pd = r.draft.planned_date
+      setDraft({
+        summary: r.draft.conversation_summary ?? r.draft.notes ?? '',
+        status: r.draft.status,
+        last_contact_at: r.draft.last_contact_at ?? new Date().toISOString().slice(0, 10),
+        inbox_ids: r.inbox_ids,
+        planned: pd?.on ? { on: pd.on, time: pd.time ?? null, venue: pd.venue ?? null } : null,
+        armDate: Boolean(pd?.on),
+      })
+    } catch (e) {
+      setMsg(`✗ ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setBusy(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  async function confirm() {
+    if (!draft) return
+    setBusy(true)
+    try {
+      await api.ingestCommit({
+        prospect: {
+          display_name: prospect.display_name,
+          status: draft.status,
+          last_contact_at: draft.last_contact_at || null,
+          apps: [],
+          interests: [],
+          prompts: [],
+          notes: '',
+        },
+        match_id: prospect.id,
+        match_name: null,
+        conversation_summary: draft.summary || null,
+        inbox_ids: draft.inbox_ids,
+        media_kind: 'chat_screenshot',
+        crop_ids: [],
+        portrait_id: null,
+      })
+      if (draft.planned && draft.armDate) {
+        await api.patchProspect(prospect.id, { next_date_at: draft.planned.on })
+      }
+      setMsg('✓ record updated')
+      setDraft(null)
+      onDone()
+    } catch (e) {
+      setMsg(`✗ ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <SystemPanel title="Scan update" code="Latest comms" accent="lavender">
+      {!draft && (
+        <div className="flex items-center gap-3">
+          <LcarsButton filled disabled={busy} onClick={() => fileRef.current?.click()}>
+            {busy ? 'Scanning…' : 'Upload new chat screenshots'}
+          </LcarsButton>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => scan(e.target.files)}
+          />
+          <span className="lcars-label">
+            updates {prospect.display_name}'s timeline, last contact and status
+          </span>
+        </div>
+      )}
+      {draft && (
+        <div className="space-y-2">
+          <label className="flex flex-col gap-1">
+            <span className="lcars-label">Conversation summary (logged to timeline)</span>
+            <textarea
+              className="lcars-input min-h-16 w-full"
+              value={draft.summary}
+              onChange={(e) => setDraft((d) => (d ? { ...d, summary: e.target.value } : d))}
+            />
+          </label>
+          <div className="flex flex-wrap gap-3">
+            <label className="flex flex-col gap-1">
+              <span className="lcars-label">Status ({STATUS_LABEL[prospect.status]} now)</span>
+              <select
+                className="lcars-input"
+                value={draft.status}
+                onChange={(e) => setDraft((d) => (d ? { ...d, status: e.target.value as Status } : d))}
+              >
+                {STATUSES.filter((s) => s !== 'archived').map((s) => (
+                  <option key={s} value={s}>
+                    {STATUS_LABEL[s]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="lcars-label">Last contact</span>
+              <input
+                className="lcars-input"
+                value={draft.last_contact_at}
+                onChange={(e) =>
+                  setDraft((d) => (d ? { ...d, last_contact_at: e.target.value } : d))
+                }
+              />
+            </label>
+          </div>
+          {draft.planned && (
+            <div className="border border-rose/50 p-2">
+              <div className="lcars-label mb-1 !text-rose">Date plans detected</div>
+              <div className="lcars-readout text-xs text-glow">
+                {draft.planned.on}
+                {draft.planned.time ? ` · ${draft.planned.time}` : ''}
+                {draft.planned.venue ? ` · ${draft.planned.venue}` : ''}
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-dim">
+                  <input
+                    type="checkbox"
+                    checked={draft.armDate}
+                    onChange={(e) => setDraft((d) => (d ? { ...d, armDate: e.target.checked } : d))}
+                  />
+                  Arm as next date (red alert on the day)
+                </label>
+                <a
+                  href={gcalUrl(
+                    `Date with ${prospect.display_name}`,
+                    draft.planned.on,
+                    draft.planned.time,
+                    draft.planned.venue,
+                  )}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="lcars-pill px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-rose"
+                >
+                  Add to Google Calendar ↗
+                </a>
+              </div>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <LcarsButton filled disabled={busy} onClick={confirm}>
+              {busy ? 'Committing…' : 'Confirm update'}
+            </LcarsButton>
+            <LcarsButton accent="mauve" onClick={() => setDraft(null)}>
+              Discard
+            </LcarsButton>
+          </div>
+        </div>
+      )}
+      {msg && (
+        <div className={`lcars-readout mt-2 text-[10px] ${msg.startsWith('✓') ? 'text-teal' : 'text-alert'}`}>
+          {msg}
+        </div>
+      )}
     </SystemPanel>
   )
 }
@@ -548,10 +758,13 @@ export function ProspectPage() {
             </div>
           </SystemPanel>
 
+          <ScanUpdate prospect={p} onDone={refresh} />
+
           <DateLog
             events={(p.events ?? []).filter((e) => e.type === 'date')}
-            onAdd={async (payload) => {
+            onAdd={async (payload, nextDate) => {
               await api.addEvent(pid, { type: 'date', payload })
+              if (nextDate) await api.patchProspect(pid, { next_date_at: nextDate })
               refresh()
             }}
           />
@@ -610,6 +823,41 @@ export function ProspectPage() {
                   {STATUS_LABEL[s]}
                 </button>
               ))}
+            </div>
+            <div className="mt-3 border-t border-line-faint pt-2">
+              <div className="lcars-label mb-1">Next date {p.next_date_at ? '(armed)' : ''}</div>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  className="lcars-input flex-1"
+                  value={p.next_date_at ?? ''}
+                  onChange={async (e) => {
+                    await api.patchProspect(pid, { next_date_at: e.target.value || null })
+                    refresh()
+                  }}
+                />
+                {p.next_date_at && (
+                  <LcarsButton
+                    accent="mauve"
+                    onClick={async () => {
+                      await api.patchProspect(pid, { next_date_at: null })
+                      refresh()
+                    }}
+                  >
+                    ✕
+                  </LcarsButton>
+                )}
+              </div>
+              {p.next_date_at && (
+                <a
+                  href={gcalUrl(`Date with ${p.display_name}`, p.next_date_at, null, null)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="lcars-code mt-1.5 inline-block !text-rose hover:!text-lavender"
+                >
+                  Add to Google Calendar ↗
+                </a>
+              )}
             </div>
           </SystemPanel>
 

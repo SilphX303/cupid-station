@@ -13,6 +13,12 @@ function daysSince(iso: string | null): number | null {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
 }
 
+function daysUntil(iso: string | null): number | null {
+  if (!iso) return null
+  const d = Math.ceil((new Date(iso + 'T00:00:00').getTime() - Date.now()) / 86400000)
+  return d < 0 ? null : d // past dates fall off the card
+}
+
 export function Roster() {
   const [prospects, setProspects] = useState<Prospect[]>([])
   const [showNew, setShowNew] = useState(false)
@@ -159,6 +165,7 @@ export function Roster() {
         {filtered.map((p) => {
           const d = daysSince(p.last_contact_at)
           const stale = d !== null && d >= 3
+          const du = daysUntil(p.next_date_at)
           return (
             <Link key={p.id} to={`/prospects/${p.id}`} className="group">
               <SystemPanel
@@ -206,6 +213,16 @@ export function Roster() {
                       {d === null ? 'never logged' : d === 0 ? 'today' : `T-${d}d`}
                     </span>
                   </div>
+                  {du !== null && (
+                    <div className="flex items-center justify-between px-3 py-1.5">
+                      <span className="lcars-label">Next date</span>
+                      <span
+                        className={`lcars-readout text-[11px] text-rose ${du === 0 ? 'animate-[alert-blink_1s_steps(2)_infinite]' : ''}`}
+                      >
+                        {du === 0 ? 'TODAY' : du === 1 ? 'tomorrow' : `T-${du}d`}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between px-3 py-1.5">
                     <span className="lcars-label">Channels</span>
                     <span className="flex gap-1">

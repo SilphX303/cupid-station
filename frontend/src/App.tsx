@@ -32,11 +32,13 @@ export default function App() {
     }
   }, [])
 
-  const yellowAlert = (stats?.needs_attention ?? 0) > 0
+  const datesToday = stats?.dates_today ?? []
+  const redAlert = datesToday.length > 0
+  const yellowAlert = !redAlert && (stats?.needs_attention ?? 0) > 0
 
   return (
     <div
-      className={`grid h-dvh grid-cols-1 gap-[var(--frame-gap)] overflow-hidden bg-space p-[var(--frame-gap)] md:grid-cols-[var(--frame-rail)_minmax(0,1fr)] grid-rows-[var(--frame-top)_minmax(0,1fr)] md:grid-rows-[var(--frame-top)_minmax(0,1fr)_var(--frame-foot)] ${yellowAlert ? 'yellow-alert' : ''}`}
+      className={`grid h-dvh grid-cols-1 gap-[var(--frame-gap)] overflow-hidden bg-space p-[var(--frame-gap)] md:grid-cols-[var(--frame-rail)_minmax(0,1fr)] grid-rows-[var(--frame-top)_minmax(0,1fr)] md:grid-rows-[var(--frame-top)_minmax(0,1fr)_var(--frame-foot)] ${redAlert ? 'red-alert' : yellowAlert ? 'yellow-alert' : ''}`}
     >
       {/* header — instrument cells */}
       <header className="col-span-full row-start-1 flex items-stretch border border-line-hi bg-panel text-[9px] uppercase">
@@ -57,6 +59,12 @@ export default function App() {
           </span>
         </div>
         <div className="flex-1 border-r border-line-hi" />
+        {redAlert && (
+          <div className="flex items-center border-r border-line-hi px-3 text-[10px] tracking-[0.2em] text-alert animate-[alert-blink_1s_steps(2)_infinite]">
+            Red alert · date today{datesToday.length > 1 ? 's' : ''} ·{' '}
+            {datesToday.map((d) => d.display_name).join(', ')}
+          </div>
+        )}
         {yellowAlert && (
           <div className="flex items-center border-r border-line-hi px-3 text-[10px] tracking-[0.2em] text-amber animate-[alert-blink_1s_steps(2)_infinite]">
             Yellow alert

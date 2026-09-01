@@ -1,0 +1,9 @@
+# /etc/systemd/system/cupid-backup.service
+[Unit]
+Description=Backup the cupid-data volume
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/backup-cupid.sh /srv/backups/cupid

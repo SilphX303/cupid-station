@@ -29,6 +29,7 @@ MIME = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp
 
 class CommitBody(BaseModel):
     prospect: ProspectIn
+    match_id: int | None = None
     match_name: str | None = None
     conversation_summary: str | None = None
     inbox_ids: list[str] = []           # the original screenshots
@@ -159,7 +160,8 @@ def commit(body: CommitBody):
         events.append(EventIn(type="message_note", payload={"text": body.conversation_summary}))
 
     result = importer.import_blob(
-        ImportBlob(match_name=body.match_name, prospect=body.prospect, events=events)
+        ImportBlob(match_id=body.match_id, match_name=body.match_name,
+                   prospect=body.prospect, events=events)
     )
     prospect_id = result["prospect_id"]
 

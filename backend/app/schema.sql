@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS prospect (
     apps          TEXT NOT NULL DEFAULT '[]',   -- JSON array: ["hinge","mattr","bumble",...]
     status        TEXT NOT NULL DEFAULT 'matched',
     last_contact_at TEXT,                       -- ISO date of last message either way
+    next_date_at  TEXT,                         -- ISO date of the next planned date, if any
     interests     TEXT NOT NULL DEFAULT '[]',   -- JSON array of strings
     looking_for   TEXT,                         -- their stated dating intentions
     prompts       TEXT NOT NULL DEFAULT '[]',   -- JSON array of {question, answer} from their profile
