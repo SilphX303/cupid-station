@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { Media } from '../lib/types'
 import { useNavigate, useParams } from 'react-router-dom'
 import { LcarsButton } from '../components/lcars/Button'
 import { AppTag, StatusPill } from '../components/lcars/Pill'
@@ -6,6 +7,89 @@ import { SystemPanel } from '../components/lcars/SystemPanel'
 import { api } from '../lib/api'
 import type { Prospect, Status } from '../lib/types'
 import { STATUSES, STATUS_LABEL } from '../lib/types'
+
+function Lightbox({
+  media,
+  index,
+  onClose,
+  onNav,
+}: {
+  media: Media[]
+  index: number
+  onClose: () => void
+  onNav: (i: number) => void
+}) {
+  const m = media[index]
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+      if (e.key === 'ArrowLeft' && index > 0) onNav(index - 1)
+      if (e.key === 'ArrowRight' && index < media.length - 1) onNav(index + 1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [index, media.length, onClose, onNav])
+
+  if (!m) return null
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-space/90 p-4 md:p-8"
+      onClick={onClose}
+    >
+      <div
+        className="lcars-panel flex max-h-full max-w-4xl flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="flex h-[22px] shrink-0 items-stretch border-b border-line-hi">
+          <div className="flex items-center border-r border-line-hi px-2 text-[9px] uppercase tracking-[0.2em] text-mauve">
+            Visual record
+          </div>
+          <div className="flex flex-1 items-center gap-3 px-2">
+            <span className="lcars-code">{m.kind.replace('_', ' ')}</span>
+            {m.caption && <span className="lcars-code !text-dim">{m.caption}</span>}
+          </div>
+          <div className="flex items-center gap-1 px-1">
+            <button
+              className="lcars-pill cursor-pointer px-2 font-mono text-[10px] text-dim disabled:opacity-30"
+              disabled={index === 0}
+              onClick={() => onNav(index - 1)}
+              aria-label="previous"
+            >
+              ◀
+            </button>
+            <span className="lcars-code">
+              {String(index + 1).padStart(2, '0')}/{String(media.length).padStart(2, '0')}
+            </span>
+            <button
+              className="lcars-pill cursor-pointer px-2 font-mono text-[10px] text-dim disabled:opacity-30"
+              disabled={index === media.length - 1}
+              onClick={() => onNav(index + 1)}
+              aria-label="next"
+            >
+              ▶
+            </button>
+            <button
+              className="lcars-pill ml-1 cursor-pointer px-2 font-mono text-[10px] text-alert"
+              onClick={onClose}
+              aria-label="close"
+            >
+              ✕
+            </button>
+          </div>
+        </header>
+        <div className="min-h-0 flex-1 bg-rail">
+          <img
+            src={`/media/${m.path}`}
+            alt={m.caption || m.kind}
+            className="mx-auto max-h-[80vh] w-auto max-w-full object-contain"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function ProspectPage() {
   const { id } = useParams()
@@ -20,6 +104,7 @@ export function ProspectPage() {
   const [logType, setLogType] = useState<'message_note' | 'note' | 'date'>('message_note')
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploadKind, setUploadKind] = useState('photo')
+  const [lightbox, setLightbox] = useState<number | null>(null)
 
   const load = useCallback(
     () =>
@@ -183,19 +268,17 @@ export function ProspectPage() {
               />
             </div>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {(p.media ?? []).map((m) => (
-                <a
+              {(p.media ?? []).map((m, i) => (
+                <button
                   key={m.id}
-                  href={`/media/${m.path}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group relative block aspect-square overflow-hidden border border-line-hi bg-rail"
+                  onClick={() => setLightbox(i)}
+                  className="group relative block aspect-square cursor-pointer overflow-hidden border border-line-hi bg-rail transition-colors hover:border-lavender"
                 >
                   <img src={`/media/${m.path}`} alt={m.caption} className="h-full w-full object-cover" />
-                  <span className="absolute bottom-0 left-0 right-0 bg-space/80 px-1 py-0.5 text-[7px] uppercase tracking-[0.14em] text-dim opacity-0 group-hover:opacity-100">
+                  <span className="absolute bottom-0 left-0 right-0 bg-space/80 px-1 py-0.5 text-left text-[7px] uppercase tracking-[0.14em] text-dim opacity-0 group-hover:opacity-100">
                     {m.kind}
                   </span>
-                </a>
+                </button>
               ))}
               {(p.media ?? []).length === 0 && (
                 <div className="col-span-full text-[10px] uppercase tracking-[0.16em] text-faint">
@@ -278,6 +361,15 @@ export function ProspectPage() {
           </SystemPanel>
         </div>
       </div>
+
+      {lightbox !== null && (p.media ?? []).length > 0 && (
+        <Lightbox
+          media={p.media ?? []}
+          index={lightbox}
+          onClose={() => setLightbox(null)}
+          onNav={setLightbox}
+        />
+      )}
     </div>
   )
 }
