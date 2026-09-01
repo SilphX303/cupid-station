@@ -1,0 +1,14 @@
+services:
+  cupid-station:
+    build: .
+    container_name: cupid-station
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+    labels:
+      # Coolify/Traefik: adjust to the hv-01 entrypoint/cert setup as usual
+      - traefik.enable=true
+      - traefik.http.routers.cupid.rule=Host(`cupid.arkadia.network`)
+      - traefik.http.services.cupid.loadbalancer.server.port=8000
