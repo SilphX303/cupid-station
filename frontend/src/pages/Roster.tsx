@@ -85,53 +85,62 @@ export function Roster() {
         </SystemPanel>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {prospects.map((p) => {
           const d = daysSince(p.last_contact_at)
           const stale = d !== null && d >= 3
           return (
             <Link key={p.id} to={`/prospects/${p.id}`} className="group">
               <SystemPanel
-                title={p.display_name}
+                title={`${p.display_name}${p.age ? ` · ${p.age}` : ''}`}
                 code={`CPD ${String(p.id).padStart(2, '0')}-2026`}
                 accent="lavender"
                 className="transition-colors group-hover:border-lavender"
                 pad={false}
               >
-                <div className="flex gap-3 p-3">
-                  <div className="h-16 w-16 shrink-0 overflow-hidden border border-line-hi bg-rail">
-                    {p.thumb ? (
-                      <img
-                        src={`/media/${p.thumb.path}`}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-[8px] text-faint">
-                        NO IMG
-                      </div>
-                    )}
+                {/* portrait */}
+                <div className="relative h-64 w-full overflow-hidden border-b border-line-hi bg-rail">
+                  {p.thumb ? (
+                    <img
+                      src={`/media/${p.thumb.path}`}
+                      alt={p.display_name}
+                      className="h-full w-full object-cover object-[50%_22%] transition-transform duration-300 group-hover:scale-[1.03]"
+                    />
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center gap-2">
+                      <svg viewBox="0 0 24 24" className="h-14 w-14 opacity-40" fill="none"
+                        stroke="var(--color-faint)" strokeWidth="1">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21c0-4 3.5-6.5 8-6.5s8 2.5 8 6.5" />
+                      </svg>
+                      <span className="lcars-code">No visual record</span>
+                    </div>
+                  )}
+                  <div className="absolute right-1.5 top-1.5 rounded-[2px] bg-space/85">
+                    <StatusPill status={p.status} />
                   </div>
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <div className="flex items-center gap-2 text-xs text-glow">
-                      {p.display_name}
-                      {p.age && <span className="lcars-readout text-[10px] text-dim">{p.age}</span>}
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {p.apps.map((a) => (
-                        <AppTag key={a} app={a} />
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <StatusPill status={p.status} />
-                      {d !== null && (
-                        <span
-                          className={`lcars-readout text-[9px] ${stale ? 'text-amber' : 'text-faint'}`}
-                        >
-                          T-{d}d
-                        </span>
-                      )}
-                    </div>
+                </div>
+                {/* personnel data */}
+                <div className="divide-y divide-line-faint">
+                  <div className="flex items-center justify-between px-3 py-1.5">
+                    <span className="lcars-label">Location</span>
+                    <span className="truncate pl-3 text-xs text-glow">{p.location || '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-1.5">
+                    <span className="lcars-label">Last contact</span>
+                    <span
+                      className={`lcars-readout text-[11px] ${
+                        d === null ? 'text-faint' : stale ? 'text-amber' : 'text-glow'
+                      }`}
+                    >
+                      {d === null ? 'never logged' : d === 0 ? 'today' : `T-${d}d`}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-1.5">
+                    <span className="lcars-label">Channels</span>
+                    <span className="flex gap-1">
+                      {p.apps.length ? p.apps.map((a) => <AppTag key={a} app={a} />) : <span className="lcars-code">—</span>}
+                    </span>
                   </div>
                 </div>
               </SystemPanel>

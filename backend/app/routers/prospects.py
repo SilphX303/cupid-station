@@ -31,7 +31,10 @@ def list_prospects(include_archived: bool = False):
         prospects = [db.row_to_prospect(r) for r in con.execute(q)]
         for p in prospects:
             media = con.execute(
-                "SELECT id, path, kind FROM media WHERE prospect_id = ? ORDER BY id LIMIT 1",
+                """SELECT id, path, kind FROM media WHERE prospect_id = ?
+                   ORDER BY CASE kind WHEN 'photo' THEN 0
+                                      WHEN 'profile_screenshot' THEN 1
+                                      ELSE 2 END, id LIMIT 1""",
                 (p["id"],),
             ).fetchone()
             p["thumb"] = dict(media) if media else None
