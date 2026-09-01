@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS prospect (
     status        TEXT NOT NULL DEFAULT 'matched',
     last_contact_at TEXT,                       -- ISO date of last message either way
     interests     TEXT NOT NULL DEFAULT '[]',   -- JSON array of strings
+    looking_for   TEXT,                         -- their stated dating intentions
+    prompts       TEXT NOT NULL DEFAULT '[]',   -- JSON array of {question, answer} from their profile
     notes         TEXT NOT NULL DEFAULT '',
     created_at    TEXT NOT NULL DEFAULT (datetime('now')),
     archived_at   TEXT

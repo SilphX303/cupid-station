@@ -38,6 +38,20 @@ Route `cupid.arkadia.network` → hv-01 in Pi-hole; Traefik labels are in
 `docker-compose.yml` — adjust entrypoint/certresolver to match the host's
 other services.
 
+### Vision extraction (Ingest → Visual scan)
+
+Set these on the container to enable in-app screenshot extraction (any
+OpenAI-compatible chat-completions endpoint with image support):
+
+```
+CUPID_VISION_BASE_URL=http://<host>:<port>/v1
+CUPID_VISION_MODEL=<served model name>
+CUPID_VISION_API_KEY=<optional>
+```
+
+Unset = the Visual scan panel reports the sensor array offline and the
+paste-JSON fallback remains available.
+
 ## API sketch
 
 `GET/POST /api/prospects` · `GET/PATCH/DELETE /api/prospects/{id}` ·

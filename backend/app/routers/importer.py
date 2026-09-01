@@ -28,10 +28,11 @@ def import_blob(body: ImportBlob):
         if existing is None:
             cur = con.execute(
                 """INSERT INTO prospect (display_name, age, location, apps, status,
-                                         last_contact_at, interests, notes)
-                   VALUES (?,?,?,?,?,?,?,?)""",
+                                         last_contact_at, looking_for, interests, prompts, notes)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
                 (p.display_name, p.age, p.location, json.dumps(p.apps), p.status,
-                 p.last_contact_at, json.dumps(p.interests), p.notes),
+                 p.last_contact_at, p.looking_for, json.dumps(p.interests),
+                 json.dumps(p.prompts), p.notes),
             )
             prospect_id, action = cur.lastrowid, "created"
         else:
@@ -39,6 +40,9 @@ def import_blob(body: ImportBlob):
             prospect_id, action = cur_p["id"], "updated"
             merged_apps = sorted(set(cur_p["apps"]) | set(p.apps))
             merged_interests = sorted(set(cur_p["interests"]) | set(p.interests))
+            merged_prompts = cur_p["prompts"] + [
+                pr for pr in p.prompts if pr not in cur_p["prompts"]
+            ]
             notes = cur_p["notes"]
             if p.notes and p.notes not in notes:
                 notes = (notes + "\n\n" + p.notes).strip()
@@ -51,9 +55,11 @@ def import_blob(body: ImportBlob):
             con.execute(
                 """UPDATE prospect SET age = COALESCE(?, age), location = COALESCE(?, location),
                        apps = ?, status = ?, last_contact_at = COALESCE(?, last_contact_at),
-                       interests = ?, notes = ? WHERE id = ?""",
+                       looking_for = COALESCE(?, looking_for), interests = ?, prompts = ?,
+                       notes = ? WHERE id = ?""",
                 (p.age, p.location, json.dumps(merged_apps), p.status, p.last_contact_at,
-                 json.dumps(merged_interests), notes, prospect_id),
+                 p.looking_for, json.dumps(merged_interests), json.dumps(merged_prompts),
+                 notes, prospect_id),
             )
 
         for e in body.events:

@@ -1,8 +1,23 @@
 # Screenshot ingestion workflow
 
-Dating apps have no APIs, so Cupid Station ingests via Claude's eyes.
+Dating apps have no APIs, so Cupid Station ingests screenshots by eye.
 
-## The loop
+## Primary: Visual scan (in-app)
+
+Ingest → Visual scan: upload one person's screenshots, the backend sends them
+to a vision model (any OpenAI-compatible endpoint with image support —
+`CUPID_VISION_BASE_URL` / `CUPID_VISION_MODEL` / `CUPID_VISION_API_KEY`),
+and a structured draft comes back for review: name, age, location, apps,
+status, looking_for, interests, profile prompts, notes, and a conversation
+summary for chat screenshots. Edit anything, then Commit — the record is
+created (or merged into an existing contact when one matches by name) and the
+screenshots are attached as media. Uploads wait in `data/inbox/` between
+analyze and commit. The extraction system prompt lives in
+`backend/app/extraction.py::SYSTEM_PROMPT`.
+
+Preferred endpoint: local vLLM on the lab, so screenshots never leave the LAN.
+
+## Fallback: extraction via chat
 
 1. **Capture** — screenshot profiles and chat threads on your phone (or save
    them to an `inbox/` folder for batch runs).

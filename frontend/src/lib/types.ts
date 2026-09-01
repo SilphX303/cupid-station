@@ -27,7 +27,9 @@ export interface Prospect {
   apps: string[]
   status: Status
   last_contact_at: string | null
+  looking_for: string | null
   interests: string[]
+  prompts: { question: string; answer: string }[]
   notes: string
   created_at: string
   archived_at: string | null
@@ -72,3 +74,23 @@ export const STATUS_COLOR: Record<Status, string> = {
 }
 
 export const APPS = ['hinge', 'mattr', 'bumble', 'other'] as const
+
+export interface Draft {
+  display_name: string | null
+  age: number | null
+  location: string | null
+  apps: string[]
+  status: Status
+  last_contact_at: string | null
+  looking_for: string | null
+  interests: string[]
+  prompts: { question: string; answer: string }[]
+  notes: string
+  conversation_summary: string | null
+}
+
+export interface AnalyzeResult {
+  draft: Draft
+  inbox_ids: string[]
+  existing_match: { id: number; display_name: string; status: Status } | null
+}

@@ -44,10 +44,11 @@ def create_prospect(body: ProspectIn):
     with db.connect() as con:
         cur = con.execute(
             """INSERT INTO prospect (display_name, age, location, apps, status,
-                                     last_contact_at, interests, notes)
-               VALUES (?,?,?,?,?,?,?,?)""",
+                                     last_contact_at, looking_for, interests, prompts, notes)
+               VALUES (?,?,?,?,?,?,?,?,?,?)""",
             (body.display_name, body.age, body.location, json.dumps(body.apps),
-             body.status, body.last_contact_at, json.dumps(body.interests), body.notes),
+             body.status, body.last_contact_at, body.looking_for,
+             json.dumps(body.interests), json.dumps(body.prompts), body.notes),
         )
         return _get_or_404(con, cur.lastrowid)
 
@@ -79,7 +80,7 @@ def patch_prospect(prospect_id: int, body: ProspectPatch):
                 )
         sets, vals = [], []
         for key, val in fields.items():
-            if key in ("apps", "interests"):
+            if key in ("apps", "interests", "prompts"):
                 val = json.dumps(val)
             sets.append(f"{key} = ?")
             vals.append(val)
@@ -127,8 +128,14 @@ def briefing(prospect_id: int, question: str = ""):
         f"Pipeline status: {p['status']}"
         + (f" (last contact {p['last_contact_at']})" if p["last_contact_at"] else ""),
     ]
+    if p["looking_for"]:
+        lines.append(f"Looking for: {p['looking_for']}")
     if p["interests"]:
         lines.append(f"Interests: {', '.join(p['interests'])}")
+    if p["prompts"]:
+        lines.append("Their profile prompts:")
+        for pr in p["prompts"]:
+            lines.append(f"- {pr.get('question')}: {pr.get('answer')}")
     if p["notes"]:
         lines += ["", "My notes:", p["notes"]]
     if events:

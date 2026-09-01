@@ -7,6 +7,15 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/data
+    environment:
+      # Vision extraction (Ingest → Visual scan). Any OpenAI-compatible
+      # endpoint with image support; leave unset to disable the sensor array.
+      # e.g. vLLM on ark-brain-01:
+      #   CUPID_VISION_BASE_URL: http://10.0.1.235:8000/v1
+      #   CUPID_VISION_MODEL: <served vision model name>
+      CUPID_VISION_BASE_URL: ${CUPID_VISION_BASE_URL:-}
+      CUPID_VISION_MODEL: ${CUPID_VISION_MODEL:-}
+      CUPID_VISION_API_KEY: ${CUPID_VISION_API_KEY:-}
     labels:
       # Coolify/Traefik: adjust to the hv-01 entrypoint/cert setup as usual
       - traefik.enable=true

@@ -125,7 +125,24 @@ export function ProspectPage() {
                 <div className="lcars-label mb-1">Interests</div>
                 <div className="text-glow">{p.interests.join(', ') || '—'}</div>
               </div>
+              <div className="sm:col-span-2">
+                <div className="lcars-label mb-1">Looking for</div>
+                <div className="text-salmon">{p.looking_for || '—'}</div>
+              </div>
             </div>
+            {p.prompts.length > 0 && (
+              <div className="mt-3">
+                <div className="lcars-label mb-1">Their prompts</div>
+                <ul className="space-y-1.5">
+                  {p.prompts.map((pr, i) => (
+                    <li key={i} className="border-l-2 border-line-hi pl-2 text-xs">
+                      <span className="lcars-code block !text-amber">{pr.question}</span>
+                      <span className="text-glow">{pr.answer}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="mt-3">
               <div className="lcars-label mb-1">Notes</div>
               <textarea

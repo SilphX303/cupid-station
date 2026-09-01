@@ -11,7 +11,9 @@ class ProspectIn(BaseModel):
     apps: list[str] = []
     status: str = "matched"
     last_contact_at: Optional[str] = None
+    looking_for: Optional[str] = None
     interests: list[str] = []
+    prompts: list[dict[str, str]] = []
     notes: str = ""
 
 
@@ -22,7 +24,9 @@ class ProspectPatch(BaseModel):
     apps: Optional[list[str]] = None
     status: Optional[str] = None
     last_contact_at: Optional[str] = None
+    looking_for: Optional[str] = None
     interests: Optional[list[str]] = None
+    prompts: Optional[list[dict[str, str]]] = None
     notes: Optional[str] = None
     archived_at: Optional[str] = None
 

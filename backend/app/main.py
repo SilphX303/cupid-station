@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import db
-from .routers import accounts, importer, media, prospects
+from .routers import accounts, importer, ingest, media, prospects
 
 app = FastAPI(title="Cupid Station", version="0.1.0")
 db.init()
@@ -28,6 +28,7 @@ app.add_middleware(
 app.include_router(prospects.router)
 app.include_router(media.router)
 app.include_router(importer.router)
+app.include_router(ingest.router)
 app.include_router(accounts.router)
 
 app.mount("/media", StaticFiles(directory=db.MEDIA_DIR), name="media")

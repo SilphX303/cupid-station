@@ -1,4 +1,4 @@
-import type { Event, Media, Prospect, Stats } from './types'
+import type { AnalyzeResult, Event, Media, Prospect, Stats } from './types'
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -35,4 +35,21 @@ export const api = {
       body: JSON.stringify(blob),
     }),
   stats: () => req<Stats>('/api/stats'),
+  ingestStatus: () => req<{ vision_configured: boolean }>('/api/ingest/status'),
+  ingestAnalyze: (files: File[]) => {
+    const fd = new FormData()
+    for (const f of files) fd.append('files', f)
+    return req<AnalyzeResult>('/api/ingest/analyze', { method: 'POST', body: fd })
+  },
+  ingestCommit: (body: {
+    prospect: Record<string, unknown>
+    match_name: string | null
+    conversation_summary: string | null
+    inbox_ids: string[]
+    media_kind: string
+  }) =>
+    req<{ action: string; prospect_id: number; media_attached: number }>('/api/ingest/commit', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 }
