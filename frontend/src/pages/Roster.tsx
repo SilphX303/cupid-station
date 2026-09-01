@@ -21,6 +21,8 @@ export function Roster() {
   const [app, setApp] = useState<string>('hinge')
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<Status | 'all'>('all')
+  const [appFilter, setAppFilter] = useState<string>('all')
+  const [sort, setSort] = useState<'recent' | 'name' | 'age' | 'newest'>('recent')
 
   const load = () => api.listProspects().then(setProspects).catch(() => {})
   useEffect(() => {
@@ -28,15 +30,30 @@ export function Roster() {
   }, [])
 
   const q = query.trim().toLowerCase()
-  const filtered = prospects.filter((p) => {
-    if (statusFilter !== 'all' && p.status !== statusFilter) return false
-    if (!q) return true
-    const hay = [p.display_name, p.location, p.notes, p.looking_for, ...p.apps, ...p.interests]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase()
-    return hay.includes(q)
-  })
+  const appsInUse = [...new Set(prospects.flatMap((p) => p.apps))].sort()
+  const filtered = prospects
+    .filter((p) => {
+      if (statusFilter !== 'all' && p.status !== statusFilter) return false
+      if (appFilter !== 'all' && !p.apps.includes(appFilter)) return false
+      if (!q) return true
+      const hay = [p.display_name, p.nickname, p.location, p.notes, p.looking_for, ...p.apps, ...p.interests]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      return hay.includes(q)
+    })
+    .sort((a, b) => {
+      switch (sort) {
+        case 'name':
+          return a.display_name.localeCompare(b.display_name)
+        case 'age':
+          return (a.age ?? 999) - (b.age ?? 999)
+        case 'newest':
+          return b.created_at.localeCompare(a.created_at)
+        default: // recent contact first, never-contacted last
+          return (b.last_contact_at ?? '').localeCompare(a.last_contact_at ?? '')
+      }
+    })
 
   async function create() {
     if (!name.trim()) return
@@ -106,7 +123,21 @@ export function Roster() {
             </option>
           ))}
         </select>
-        {(query || statusFilter !== 'all') && (
+        <select className="lcars-input" value={appFilter} onChange={(e) => setAppFilter(e.target.value)}>
+          <option value="all">all apps</option>
+          {appsInUse.map((a) => (
+            <option key={a} value={a}>
+              {a}
+            </option>
+          ))}
+        </select>
+        <select className="lcars-input" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
+          <option value="recent">recent contact</option>
+          <option value="newest">newest</option>
+          <option value="name">name</option>
+          <option value="age">age</option>
+        </select>
+        {(query || statusFilter !== 'all' || appFilter !== 'all') && (
           <span className="lcars-code">
             {filtered.length}/{prospects.length} shown
           </span>
@@ -131,7 +162,7 @@ export function Roster() {
           return (
             <Link key={p.id} to={`/prospects/${p.id}`} className="group">
               <SystemPanel
-                title={`${p.display_name}${p.age ? ` · ${p.age}` : ''}`}
+                title={`${p.display_name}${p.nickname ? ` “${p.nickname}”` : ''}${p.age ? ` · ${p.age}` : ''}`}
                 code={`CPD ${String(p.id).padStart(2, '0')}-2026`}
                 accent="lavender"
                 className="transition-colors group-hover:border-lavender"

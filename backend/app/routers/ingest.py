@@ -120,6 +120,26 @@ async def analyze(files: list[UploadFile] = File(...)):
     return {"draft": draft, "inbox_ids": inbox_ids, "crop_ids": crop_ids, "existing_match": suggestion}
 
 
+@router.post("/analyze-self")
+async def analyze_self(files: list[UploadFile] = File(...)):
+    """Extract the user's OWN profile from screenshots — fills a My Profiles panel.
+    Nothing is stored: the draft goes to the review form and the user saves via
+    PUT /api/accounts/{app}."""
+    if not extraction.configured():
+        raise HTTPException(503, "Vision extraction is not configured.")
+    images: list[tuple[bytes, str]] = []
+    for f in files:
+        ext = Path(f.filename or "").suffix.lower()
+        if ext not in ALLOWED:
+            raise HTTPException(422, f"file type {ext or '(none)'} not allowed")
+        images.append((await f.read(), MIME[ext]))
+    try:
+        draft = extraction.analyze(images, system_prompt=extraction.SELF_PROMPT)
+    except Exception as e:
+        raise HTTPException(502, f"vision model call failed: {e}")
+    return {"draft": draft}
+
+
 @router.get("/inbox/{inbox_id}")
 def inbox_preview(inbox_id: str):
     """Serve a pending upload or crop so the review panel can display it."""

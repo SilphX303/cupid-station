@@ -3,6 +3,7 @@
 CREATE TABLE IF NOT EXISTS prospect (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     display_name  TEXT NOT NULL,
+    nickname      TEXT,                         -- disambiguator ("Gym Sarah") — unique-ish by convention
     age           INTEGER,
     location      TEXT,
     apps          TEXT NOT NULL DEFAULT '[]',   -- JSON array: ["hinge","mattr","bumble",...]

@@ -38,12 +38,27 @@ active back-and-forth = chatting; no reply 3+ days = quiet; planned meetup visib
 Multiple screenshots in one request are the SAME person unless clearly not — merge into one object.
 Never invent data; use null for anything not visible."""
 
+SELF_PROMPT = """You extract the USER'S OWN dating-app profile from screenshots of it.
+Reply with ONE JSON object and nothing else, exactly this shape:
+
+{
+  "app": "hinge" | "mattr" | "bumble" | "<other app name in lowercase>",
+  "bio": "<their bio/about text, verbatim, or empty string>",
+  "prompts": [{"question": "<prompt title>", "answer": "<their answer, verbatim>"}],
+  "notes": "<anything else on the profile worth recording: badges, photo count and what the photos show, stated preferences>"
+}
+
+Which app: infer from the UI (Hinge's serif prompts; Bumble's yellow; Mattr's look) —
+use the app's lowercase name if it's some other app you recognise.
+Multiple screenshots are the SAME profile — merge. Quote bio and prompt answers
+verbatim; never paraphrase them. Never invent data."""
+
 
 def configured() -> bool:
     return bool(os.environ.get("CUPID_VISION_BASE_URL") and os.environ.get("CUPID_VISION_MODEL"))
 
 
-def analyze(images: list[tuple[bytes, str]]) -> dict:
+def analyze(images: list[tuple[bytes, str]], system_prompt: str = SYSTEM_PROMPT) -> dict:
     """images: list of (raw bytes, mime type). Returns the parsed draft dict."""
     base = os.environ["CUPID_VISION_BASE_URL"].rstrip("/")
     model = os.environ["CUPID_VISION_MODEL"]
@@ -61,7 +76,7 @@ def analyze(images: list[tuple[bytes, str]]) -> dict:
         json={
             "model": model,
             "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": content},
             ],
             "temperature": 0.1,

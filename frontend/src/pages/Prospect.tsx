@@ -228,7 +228,7 @@ export function ProspectPage() {
   const [lightbox, setLightbox] = useState<number | null>(null)
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({
-    display_name: '', age: '', location: '', apps: '', interests: '', looking_for: '',
+    display_name: '', nickname: '', age: '', location: '', apps: '', interests: '', looking_for: '',
     prompts: [] as { question: string; answer: string }[],
   })
 
@@ -236,6 +236,7 @@ export function ProspectPage() {
     if (!p) return
     setForm({
       display_name: p.display_name,
+      nickname: p.nickname ?? '',
       age: p.age?.toString() ?? '',
       location: p.location ?? '',
       apps: p.apps.join(', '),
@@ -250,6 +251,7 @@ export function ProspectPage() {
     if (!form.display_name.trim()) return
     await api.patchProspect(pid, {
       display_name: form.display_name.trim(),
+      nickname: form.nickname.trim() || null,
       age: form.age ? Number(form.age) : null,
       location: form.location.trim() || null,
       apps: form.apps.split(',').map((s) => s.trim()).filter(Boolean),
@@ -324,6 +326,7 @@ export function ProspectPage() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="flex items-center gap-3 text-lg text-glow">
           {p.display_name}
+          {p.nickname && <span className="text-sm text-salmon">“{p.nickname}”</span>}
           {p.age && <span className="lcars-readout text-sm text-dim">{p.age}</span>}
           <StatusPill status={p.status} />
         </h1>
@@ -370,6 +373,11 @@ export function ProspectPage() {
                   <span className="lcars-label">Name</span>
                   <input className="lcars-input" value={form.display_name}
                     onChange={(e) => setForm((f) => ({ ...f, display_name: e.target.value }))} />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="lcars-label">Nickname (disambiguator, e.g. “Gym Sarah”)</span>
+                  <input className="lcars-input" value={form.nickname}
+                    onChange={(e) => setForm((f) => ({ ...f, nickname: e.target.value }))} />
                 </label>
                 <label className="flex flex-col gap-1">
                   <span className="lcars-label">Age</span>

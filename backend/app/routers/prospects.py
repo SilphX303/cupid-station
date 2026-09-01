@@ -47,10 +47,10 @@ def create_prospect(body: ProspectIn):
     _validate_status(body.status)
     with db.connect() as con:
         cur = con.execute(
-            """INSERT INTO prospect (display_name, age, location, apps, status,
+            """INSERT INTO prospect (display_name, nickname, age, location, apps, status,
                                      last_contact_at, looking_for, interests, prompts, notes)
-               VALUES (?,?,?,?,?,?,?,?,?,?)""",
-            (body.display_name, body.age, body.location, json.dumps(body.apps),
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            (body.display_name, body.nickname, body.age, body.location, json.dumps(body.apps),
              body.status, body.last_contact_at, body.looking_for,
              json.dumps(body.interests), json.dumps(body.prompts), body.notes),
         )
@@ -126,6 +126,7 @@ def briefing(prospect_id: int, question: str = ""):
         f"Generated {date.today().isoformat()}",
         "",
         f"Prospect: {p['display_name']}"
+        + (f" (aka {p['nickname']})" if p.get("nickname") else "")
         + (f", {p['age']}" if p["age"] else "")
         + (f", {p['location']}" if p["location"] else ""),
         f"Met on: {', '.join(p['apps']) or 'unknown'}",

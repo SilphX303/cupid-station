@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 class ProspectIn(BaseModel):
     display_name: str
+    nickname: Optional[str] = None
     age: Optional[int] = None
     location: Optional[str] = None
     apps: list[str] = []
@@ -19,6 +20,7 @@ class ProspectIn(BaseModel):
 
 class ProspectPatch(BaseModel):
     display_name: Optional[str] = None
+    nickname: Optional[str] = None
     age: Optional[int] = None
     location: Optional[str] = None
     apps: Optional[list[str]] = None

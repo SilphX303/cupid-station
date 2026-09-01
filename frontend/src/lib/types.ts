@@ -23,6 +23,7 @@ export interface Event {
 export interface Prospect {
   id: number
   display_name: string
+  nickname: string | null
   age: number | null
   location: string | null
   apps: string[]
