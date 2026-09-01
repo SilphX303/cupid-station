@@ -5,8 +5,8 @@ import { Divider } from '../components/lcars/Divider'
 import { AppTag, StatusPill } from '../components/lcars/Pill'
 import { SystemPanel } from '../components/lcars/SystemPanel'
 import { api } from '../lib/api'
-import type { Prospect } from '../lib/types'
-import { APPS } from '../lib/types'
+import type { Prospect, Status } from '../lib/types'
+import { APPS, STATUSES, STATUS_LABEL } from '../lib/types'
 
 function daysSince(iso: string | null): number | null {
   if (!iso) return null
@@ -19,11 +19,24 @@ export function Roster() {
   const [name, setName] = useState('')
   const [age, setAge] = useState('')
   const [app, setApp] = useState<string>('hinge')
+  const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<Status | 'all'>('all')
 
   const load = () => api.listProspects().then(setProspects).catch(() => {})
   useEffect(() => {
     load()
   }, [])
+
+  const q = query.trim().toLowerCase()
+  const filtered = prospects.filter((p) => {
+    if (statusFilter !== 'all' && p.status !== statusFilter) return false
+    if (!q) return true
+    const hay = [p.display_name, p.location, p.notes, p.looking_for, ...p.apps, ...p.interests]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+    return hay.includes(q)
+  })
 
   async function create() {
     if (!name.trim()) return
@@ -74,6 +87,32 @@ export function Roster() {
         </SystemPanel>
       )}
 
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          className="lcars-input w-56"
+          placeholder="search name, place, interests…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <select
+          className="lcars-input"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as Status | 'all')}
+        >
+          <option value="all">all statuses</option>
+          {STATUSES.filter((s) => s !== 'archived').map((s) => (
+            <option key={s} value={s}>
+              {STATUS_LABEL[s]}
+            </option>
+          ))}
+        </select>
+        {(query || statusFilter !== 'all') && (
+          <span className="lcars-code">
+            {filtered.length}/{prospects.length} shown
+          </span>
+        )}
+      </div>
+
       <Divider />
 
       {prospects.length === 0 && (
@@ -86,7 +125,7 @@ export function Roster() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {prospects.map((p) => {
+        {filtered.map((p) => {
           const d = daysSince(p.last_contact_at)
           const stale = d !== null && d >= 3
           return (

@@ -226,6 +226,40 @@ export function ProspectPage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploadKind, setUploadKind] = useState('photo')
   const [lightbox, setLightbox] = useState<number | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState({
+    display_name: '', age: '', location: '', apps: '', interests: '', looking_for: '',
+    prompts: [] as { question: string; answer: string }[],
+  })
+
+  function startEdit() {
+    if (!p) return
+    setForm({
+      display_name: p.display_name,
+      age: p.age?.toString() ?? '',
+      location: p.location ?? '',
+      apps: p.apps.join(', '),
+      interests: p.interests.join(', '),
+      looking_for: p.looking_for ?? '',
+      prompts: p.prompts.map((x) => ({ ...x })),
+    })
+    setEditing(true)
+  }
+
+  async function saveEdit() {
+    if (!form.display_name.trim()) return
+    await api.patchProspect(pid, {
+      display_name: form.display_name.trim(),
+      age: form.age ? Number(form.age) : null,
+      location: form.location.trim() || null,
+      apps: form.apps.split(',').map((s) => s.trim()).filter(Boolean),
+      interests: form.interests.split(',').map((s) => s.trim()).filter(Boolean),
+      looking_for: form.looking_for.trim() || null,
+      prompts: form.prompts.filter((x) => x.question.trim() || x.answer.trim()),
+    })
+    setEditing(false)
+    refresh()
+  }
 
   const load = useCallback(
     () =>
@@ -314,6 +348,85 @@ export function ProspectPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <SystemPanel title="Profile" code={`CPD ${String(pid).padStart(2, '0')}-2026`} accent="amber">
+            <div className="mb-2 flex justify-end">
+              {!editing ? (
+                <LcarsButton accent="mauve" onClick={startEdit}>
+                  Edit
+                </LcarsButton>
+              ) : (
+                <div className="flex gap-2">
+                  <LcarsButton filled onClick={saveEdit}>
+                    Save
+                  </LcarsButton>
+                  <LcarsButton accent="mauve" onClick={() => setEditing(false)}>
+                    Cancel
+                  </LcarsButton>
+                </div>
+              )}
+            </div>
+            {editing && (
+              <div className="mb-3 grid gap-2 border-b border-line-faint pb-3 sm:grid-cols-2">
+                <label className="flex flex-col gap-1">
+                  <span className="lcars-label">Name</span>
+                  <input className="lcars-input" value={form.display_name}
+                    onChange={(e) => setForm((f) => ({ ...f, display_name: e.target.value }))} />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="lcars-label">Age</span>
+                  <input className="lcars-input" value={form.age}
+                    onChange={(e) => setForm((f) => ({ ...f, age: e.target.value }))} />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="lcars-label">Location</span>
+                  <input className="lcars-input" value={form.location}
+                    onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="lcars-label">Apps (comma-sep)</span>
+                  <input className="lcars-input" value={form.apps}
+                    onChange={(e) => setForm((f) => ({ ...f, apps: e.target.value }))} />
+                </label>
+                <label className="flex flex-col gap-1 sm:col-span-2">
+                  <span className="lcars-label">Interests (comma-sep)</span>
+                  <input className="lcars-input" value={form.interests}
+                    onChange={(e) => setForm((f) => ({ ...f, interests: e.target.value }))} />
+                </label>
+                <label className="flex flex-col gap-1 sm:col-span-2">
+                  <span className="lcars-label">Looking for</span>
+                  <input className="lcars-input" value={form.looking_for}
+                    onChange={(e) => setForm((f) => ({ ...f, looking_for: e.target.value }))} />
+                </label>
+                <div className="sm:col-span-2">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="lcars-label">Their prompts</span>
+                    <LcarsButton accent="teal"
+                      onClick={() => setForm((f) => ({ ...f, prompts: [...f.prompts, { question: '', answer: '' }] }))}>
+                      + Prompt
+                    </LcarsButton>
+                  </div>
+                  <div className="space-y-1.5">
+                    {form.prompts.map((pr, i) => (
+                      <div key={i} className="flex gap-1.5">
+                        <input className="lcars-input w-2/5" value={pr.question}
+                          onChange={(e) => setForm((f) => ({
+                            ...f,
+                            prompts: f.prompts.map((x, j) => (j === i ? { ...x, question: e.target.value } : x)),
+                          }))} />
+                        <input className="lcars-input flex-1" value={pr.answer}
+                          onChange={(e) => setForm((f) => ({
+                            ...f,
+                            prompts: f.prompts.map((x, j) => (j === i ? { ...x, answer: e.target.value } : x)),
+                          }))} />
+                        <LcarsButton accent="alert"
+                          onClick={() => setForm((f) => ({ ...f, prompts: f.prompts.filter((_, j) => j !== i) }))}>
+                          ✕
+                        </LcarsButton>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="grid gap-3 text-xs sm:grid-cols-2">
               <div>
                 <div className="lcars-label mb-1">Met on</div>

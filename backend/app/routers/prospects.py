@@ -164,5 +164,19 @@ def briefing(prospect_id: int, question: str = ""):
             summary = e["payload"].get("text") or e["payload"].get("summary") \
                 or json.dumps(e["payload"]) if e["payload"] else ""
             lines.append(f"- {e['ts']} [{e['type']}] {summary}")
+    # my own profile on the apps this prospect is on — so advice can account
+    # for what my profile claims about me
+    with db.connect() as con:
+        accounts = [dict(r) for r in con.execute("SELECT * FROM app_account")]
+    mine = [a for a in accounts if a["app"] in p["apps"]]
+    if mine:
+        lines += ["", "My own profile on the app(s) we matched on:"]
+        for a in mine:
+            lines.append(f"[{a['app']}]")
+            if a["bio"]:
+                lines.append(f"  Bio: {a['bio']}")
+            for pr in json.loads(a.get("prompts") or "[]"):
+                lines.append(f"  {pr.get('question')}: {pr.get('answer')}")
+
     lines += ["", "What I need help with:", question or "<type your question here>"]
     return {"text": "\n".join(lines)}

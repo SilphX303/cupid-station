@@ -8,6 +8,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import App from './App'
 import './index.css'
 import { ImportPage } from './pages/Import'
+import { MyProfiles } from './pages/MyProfiles'
 import { Ops } from './pages/Ops'
 import { Pipeline } from './pages/Pipeline'
 import { ProspectPage } from './pages/Prospect'
@@ -23,6 +24,7 @@ const router = createBrowserRouter([
       { path: 'pipeline', element: <Pipeline /> },
       { path: 'import', element: <ImportPage /> },
       { path: 'ops', element: <Ops /> },
+      { path: 'me', element: <MyProfiles /> },
     ],
   },
 ])
