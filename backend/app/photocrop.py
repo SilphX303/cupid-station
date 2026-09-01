@@ -13,9 +13,14 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-MIN_H_FRAC = 0.10   # a photo band is at least 10% of the screenshot height
-MIN_W_FRAC = 0.35   # ...and at least 35% of its width
-ROW_SCORE_T = 0.25  # fraction of "photo-like" pixels for a row to count
+# Thresholds are relative to the image WIDTH, never the height: a scrolling
+# capture can be arbitrarily tall, which would dilute any height-based
+# fraction until every photo is rejected (the bug that shipped first).
+# Dating-app photos are near-full-width and roughly square-to-portrait.
+MIN_H_FRAC_OF_W = 0.35  # a photo is at least 35% of the image width tall
+MIN_W_FRAC = 0.35       # ...and at least 35% of the image width wide
+ROW_SCORE_T = 0.25      # fraction of "photo-like" pixels for a row to count
+ANALYSIS_W = 480        # analysis runs on a width-normalised copy
 
 
 def _photo_mask(img: Image.Image) -> np.ndarray:
@@ -55,16 +60,21 @@ def _bands(scores: np.ndarray, min_len: int, threshold: float) -> list[tuple[int
 
 def find_photos(path: Path) -> list[tuple[int, int, int, int]]:
     """Return candidate photo boxes as (left, top, right, bottom) in original pixels."""
-    img = Image.open(path)
-    img.thumbnail((480, 4000))  # analyse a downscaled copy for speed
-    scale = Image.open(path).width / img.width
+    orig = Image.open(path)
+    if orig.width > ANALYSIS_W:
+        img = orig.resize((ANALYSIS_W, max(1, round(orig.height * ANALYSIS_W / orig.width))))
+    else:
+        img = orig.copy()
+    scale = orig.width / img.width
     mask = _photo_mask(img)
     h, w = mask.shape
+    min_h = int(w * MIN_H_FRAC_OF_W)
+    min_w = int(w * MIN_W_FRAC)
 
     boxes = []
-    for top, bottom in _bands(mask.mean(axis=1), int(h * MIN_H_FRAC), ROW_SCORE_T):
+    for top, bottom in _bands(mask.mean(axis=1), min_h, ROW_SCORE_T):
         strip = mask[top:bottom]
-        col_bands = _bands(strip.mean(axis=0), int(w * MIN_W_FRAC), ROW_SCORE_T)
+        col_bands = _bands(strip.mean(axis=0), min_w, ROW_SCORE_T)
         for left, right in col_bands:
             # refine vertical extent within the column range
             sub = mask[top:bottom, left:right]
@@ -72,7 +82,7 @@ def find_photos(path: Path) -> list[tuple[int, int, int, int]]:
             if rows.size == 0:
                 continue
             t, b = top + rows.min(), top + rows.max() + 1
-            if (b - t) >= h * MIN_H_FRAC and (right - left) >= w * MIN_W_FRAC:
+            if (b - t) >= min_h and (right - left) >= min_w:
                 boxes.append(tuple(int(v * scale) for v in (left, t, right, b)))
     return boxes
 
