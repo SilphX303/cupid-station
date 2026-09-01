@@ -8,6 +8,127 @@ import { api } from '../lib/api'
 import type { Prospect, Status } from '../lib/types'
 import { STATUSES, STATUS_LABEL } from '../lib/types'
 
+const VERDICTS = ['Stellar', 'Good', 'Mixed', 'Poor', 'Disaster'] as const
+
+function DateLog({
+  events,
+  onAdd,
+}: {
+  events: { id: number; ts: string; payload: Record<string, unknown> }[]
+  onAdd: (payload: Record<string, unknown>) => Promise<void>
+}) {
+  const [open, setOpen] = useState(false)
+  const [on, setOn] = useState(new Date().toISOString().slice(0, 10))
+  const [venue, setVenue] = useState('')
+  const [verdict, setVerdict] = useState<string>('Good')
+  const [green, setGreen] = useState('')
+  const [red, setRed] = useState('')
+  const [text, setText] = useState('')
+  const [next, setNext] = useState('')
+
+  async function submit() {
+    if (!venue.trim()) return
+    await onAdd({
+      on,
+      venue: venue.trim(),
+      verdict,
+      green_flags: green.split(',').map((s) => s.trim()).filter(Boolean),
+      red_flags: red.split(',').map((s) => s.trim()).filter(Boolean),
+      text: text.trim(),
+      next_step: next.trim(),
+    })
+    setVenue('')
+    setGreen('')
+    setRed('')
+    setText('')
+    setNext('')
+    setOpen(false)
+  }
+
+  return (
+    <SystemPanel title="Date log" code={`${String(events.length).padStart(2, '0')} logged`} accent="rose">
+      {!open && (
+        <LcarsButton accent="rose" onClick={() => setOpen(true)}>
+          + Log a date
+        </LcarsButton>
+      )}
+      {open && (
+        <div className="mb-3 space-y-2 border-b border-line-faint pb-3">
+          <div className="grid gap-2 sm:grid-cols-3">
+            <label className="flex flex-col gap-1">
+              <span className="lcars-label">When</span>
+              <input type="date" className="lcars-input" value={on} onChange={(e) => setOn(e.target.value)} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="lcars-label">Venue / activity</span>
+              <input className="lcars-input" value={venue} onChange={(e) => setVenue(e.target.value)} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="lcars-label">Verdict</span>
+              <select className="lcars-input" value={verdict} onChange={(e) => setVerdict(e.target.value)}>
+                {VERDICTS.map((v) => (
+                  <option key={v}>{v}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 sm:col-span-3">
+              <span className="lcars-label">Green flags (comma-sep)</span>
+              <input className="lcars-input" value={green} onChange={(e) => setGreen(e.target.value)} />
+            </label>
+            <label className="flex flex-col gap-1 sm:col-span-3">
+              <span className="lcars-label">Red flags (comma-sep)</span>
+              <input className="lcars-input" value={red} onChange={(e) => setRed(e.target.value)} />
+            </label>
+            <label className="flex flex-col gap-1 sm:col-span-3">
+              <span className="lcars-label">How it went</span>
+              <textarea className="lcars-input min-h-16" value={text} onChange={(e) => setText(e.target.value)} />
+            </label>
+            <label className="flex flex-col gap-1 sm:col-span-3">
+              <span className="lcars-label">Next step</span>
+              <input className="lcars-input" value={next} onChange={(e) => setNext(e.target.value)} />
+            </label>
+          </div>
+          <div className="flex gap-2">
+            <LcarsButton filled accent="rose" onClick={submit}>
+              Log date
+            </LcarsButton>
+            <LcarsButton accent="mauve" onClick={() => setOpen(false)}>
+              Cancel
+            </LcarsButton>
+          </div>
+        </div>
+      )}
+      <ul className="mt-3 space-y-3">
+        {events.map((e) => {
+          const pl = e.payload
+          return (
+            <li key={e.id} className="border-l-2 border-line-hi pl-2">
+              <div className="flex flex-wrap items-baseline gap-2">
+                <span className="lcars-code">{String(pl.on ?? e.ts.slice(0, 10))}</span>
+                <span className="text-xs text-glow">{String(pl.venue ?? '')}</span>
+                <span className="lcars-code !text-rose">{String(pl.verdict ?? '')}</span>
+              </div>
+              {Array.isArray(pl.green_flags) && pl.green_flags.length > 0 && (
+                <div className="text-[10px] text-teal">▲ {pl.green_flags.join(' · ')}</div>
+              )}
+              {Array.isArray(pl.red_flags) && pl.red_flags.length > 0 && (
+                <div className="text-[10px] text-alert">▼ {pl.red_flags.join(' · ')}</div>
+              )}
+              {typeof pl.text === 'string' && pl.text && <div className="text-xs text-dim">{pl.text}</div>}
+              {typeof pl.next_step === 'string' && pl.next_step && (
+                <div className="text-[10px] uppercase tracking-[0.14em] text-amber">Next: {pl.next_step}</div>
+              )}
+            </li>
+          )
+        })}
+        {events.length === 0 && (
+          <li className="text-[10px] uppercase tracking-[0.16em] text-faint">No dates logged</li>
+        )}
+      </ul>
+    </SystemPanel>
+  )
+}
+
 function Lightbox({
   media,
   index,
@@ -306,6 +427,14 @@ export function ProspectPage() {
             </div>
           </SystemPanel>
 
+          <DateLog
+            events={(p.events ?? []).filter((e) => e.type === 'date')}
+            onAdd={async (payload) => {
+              await api.addEvent(pid, { type: 'date', payload })
+              refresh()
+            }}
+          />
+
           <SystemPanel title="Timeline" code="Event log" accent="teal">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <select
@@ -314,7 +443,6 @@ export function ProspectPage() {
                 onChange={(e) => setLogType(e.target.value as typeof logType)}
               >
                 <option value="message_note">message note</option>
-                <option value="date">date log</option>
                 <option value="note">general note</option>
               </select>
               <input
@@ -334,7 +462,9 @@ export function ProspectPage() {
                   <span className="min-w-0 text-glow">
                     {e.type === 'status_change'
                       ? `${e.payload.from} → ${e.payload.to}`
-                      : String(e.payload.text ?? e.payload.question ?? '')}
+                      : e.type === 'date'
+                        ? `${e.payload.venue ?? '?'} — ${e.payload.verdict ?? ''}`
+                        : String(e.payload.text ?? e.payload.question ?? '')}
                   </span>
                 </li>
               ))}

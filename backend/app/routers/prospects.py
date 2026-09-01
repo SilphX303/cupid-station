@@ -142,6 +142,22 @@ def briefing(prospect_id: int, question: str = ""):
             lines.append(f"- {pr.get('question')}: {pr.get('answer')}")
     if p["notes"]:
         lines += ["", "My notes:", p["notes"]]
+    dates = [e for e in events if e["type"] == "date"]
+    if dates:
+        lines += ["", "Date history (newest first):"]
+        for e in dates[:5]:
+            pl = e["payload"]
+            bits = [pl.get("on") or e["ts"][:10], pl.get("venue") or "?", pl.get("verdict") or ""]
+            line = f"- {' · '.join(str(b) for b in bits if b)}"
+            if pl.get("green_flags"):
+                line += f" | green: {', '.join(pl['green_flags'])}"
+            if pl.get("red_flags"):
+                line += f" | red: {', '.join(pl['red_flags'])}"
+            if pl.get("text"):
+                line += f" | {pl['text']}"
+            if pl.get("next_step"):
+                line += f" | next: {pl['next_step']}"
+            lines.append(line)
     if events:
         lines += ["", "Recent timeline (newest first):"]
         for e in events:

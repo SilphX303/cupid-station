@@ -7,6 +7,7 @@ const NAV = [
   { to: '/', code: '01', label: 'Roster' },
   { to: '/pipeline', code: '02', label: 'Comms Pipeline' },
   { to: '/import', code: '03', label: 'Ingest' },
+  { to: '/ops', code: '04', label: 'Ops' },
 ]
 
 function stardate(): string {
