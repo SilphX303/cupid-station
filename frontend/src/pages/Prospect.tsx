@@ -269,16 +269,34 @@ export function ProspectPage() {
             </div>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {(p.media ?? []).map((m, i) => (
-                <button
+                <div
                   key={m.id}
-                  onClick={() => setLightbox(i)}
-                  className="group relative block aspect-square cursor-pointer overflow-hidden border border-line-hi bg-rail transition-colors hover:border-lavender"
+                  className={`group relative aspect-square overflow-hidden border bg-rail transition-colors hover:border-lavender ${
+                    m.is_portrait ? 'border-amber' : 'border-line-hi'
+                  }`}
                 >
-                  <img src={`/media/${m.path}`} alt={m.caption} className="h-full w-full object-cover" />
-                  <span className="absolute bottom-0 left-0 right-0 bg-space/80 px-1 py-0.5 text-left text-[7px] uppercase tracking-[0.14em] text-dim opacity-0 group-hover:opacity-100">
+                  <button
+                    onClick={() => setLightbox(i)}
+                    className="block h-full w-full cursor-pointer"
+                  >
+                    <img src={`/media/${m.path}`} alt={m.caption} className="h-full w-full object-cover" />
+                  </button>
+                  <button
+                    className={`absolute right-1 top-1 rounded-[2px] bg-space/85 px-1.5 py-0.5 font-mono text-[10px] ${
+                      m.is_portrait ? 'text-amber' : 'text-dim opacity-0 group-hover:opacity-100'
+                    }`}
+                    title="set as portrait"
+                    onClick={async () => {
+                      await api.setPortrait(m.id)
+                      refresh()
+                    }}
+                  >
+                    {m.is_portrait ? '★' : '☆'}
+                  </button>
+                  <span className="pointer-events-none absolute bottom-0 left-0 right-0 bg-space/80 px-1 py-0.5 text-left text-[7px] uppercase tracking-[0.14em] text-dim opacity-0 group-hover:opacity-100">
                     {m.kind}
                   </span>
-                </button>
+                </div>
               ))}
               {(p.media ?? []).length === 0 && (
                 <div className="col-span-full text-[10px] uppercase tracking-[0.16em] text-faint">

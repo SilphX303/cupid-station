@@ -8,6 +8,7 @@ export interface Media {
   path: string
   kind: 'photo' | 'profile_screenshot' | 'chat_screenshot'
   caption?: string
+  is_portrait?: number
   created_at?: string
 }
 
@@ -92,5 +93,6 @@ export interface Draft {
 export interface AnalyzeResult {
   draft: Draft
   inbox_ids: string[]
+  crop_ids: string[]
   existing_match: { id: number; display_name: string; status: Status } | null
 }

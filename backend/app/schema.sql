@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS media (
     kind        TEXT NOT NULL DEFAULT 'photo',  -- photo | profile_screenshot | chat_screenshot
     caption     TEXT NOT NULL DEFAULT '',
     captured_at TEXT,
+    is_portrait INTEGER NOT NULL DEFAULT 0,       -- at most one per prospect
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

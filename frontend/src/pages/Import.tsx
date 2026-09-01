@@ -56,6 +56,8 @@ function VisualScan() {
   const [scan, setScan] = useState<AnalyzeResult | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [useMatch, setUseMatch] = useState(true)
+  const [keptCrops, setKeptCrops] = useState<string[]>([])
+  const [portraitId, setPortraitId] = useState<string | null>(null)
   const [msg, setMsg] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -74,6 +76,8 @@ function VisualScan() {
       setScan(r)
       setDraft(r.draft)
       setUseMatch(r.existing_match !== null)
+      setKeptCrops(r.crop_ids)
+      setPortraitId(r.crop_ids[0] ?? null)
     } catch (e) {
       setMsg(`✗ ${e instanceof Error ? e.message : String(e)}`)
     } finally {
@@ -106,6 +110,8 @@ function VisualScan() {
         conversation_summary: draft.conversation_summary,
         inbox_ids: scan.inbox_ids,
         media_kind: draft.conversation_summary ? 'chat_screenshot' : 'profile_screenshot',
+        crop_ids: keptCrops,
+        portrait_id: portraitId && keptCrops.includes(portraitId) ? portraitId : null,
       })
       setMsg(`✓ ${r.action} prospect #${r.prospect_id}, ${r.media_attached} screenshot(s) attached`)
       setScan(null)
@@ -149,6 +155,59 @@ function VisualScan() {
 
       {draft && scan && (
         <div className="space-y-3">
+          {scan.crop_ids.length > 0 && (
+            <div>
+              <div className="lcars-label mb-1">
+                Extracted photos — tick to keep, star one as portrait
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {scan.crop_ids.map((cid) => {
+                  const kept = keptCrops.includes(cid)
+                  const isPortrait = portraitId === cid && kept
+                  return (
+                    <div
+                      key={cid}
+                      className={`relative w-28 overflow-hidden border transition-colors ${
+                        isPortrait
+                          ? 'border-amber'
+                          : kept
+                            ? 'border-lavender'
+                            : 'border-line-hi opacity-40'
+                      }`}
+                    >
+                      <button
+                        className="block h-32 w-full cursor-pointer bg-rail"
+                        title={kept ? 'click to discard' : 'click to keep'}
+                        onClick={() =>
+                          setKeptCrops((k) =>
+                            k.includes(cid) ? k.filter((x) => x !== cid) : [...k, cid],
+                          )
+                        }
+                      >
+                        <img
+                          src={`/api/ingest/inbox/${cid}`}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      </button>
+                      <button
+                        className={`absolute right-1 top-1 rounded-[2px] bg-space/85 px-1.5 py-0.5 font-mono text-[10px] ${
+                          isPortrait ? 'text-amber' : 'text-dim'
+                        }`}
+                        title="set as portrait"
+                        onClick={() => {
+                          if (!keptCrops.includes(cid)) setKeptCrops((k) => [...k, cid])
+                          setPortraitId(cid)
+                        }}
+                      >
+                        {isPortrait ? '★' : '☆'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
           {scan.existing_match && (
             <label className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-amber">
               <input

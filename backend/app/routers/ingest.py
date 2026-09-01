@@ -12,9 +12,10 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from .. import db, extraction
+from .. import db, extraction, photocrop
 from ..models import ProspectIn
 
 router = APIRouter(prefix="/api/ingest", tags=["ingest"])
@@ -27,8 +28,10 @@ class CommitBody(BaseModel):
     prospect: ProspectIn
     match_name: str | None = None
     conversation_summary: str | None = None
-    inbox_ids: list[str] = []
+    inbox_ids: list[str] = []           # the original screenshots
     media_kind: str = "profile_screenshot"
+    crop_ids: list[str] = []            # cut-out photos the reviewer kept
+    portrait_id: str | None = None      # one of crop_ids (or inbox_ids) to mark is_portrait
 
 
 @router.get("/status")
@@ -62,6 +65,16 @@ async def analyze(files: list[UploadFile] = File(...)):
     except Exception as e:  # surface model/endpoint failures readably
         raise HTTPException(502, f"vision model call failed: {e}")
 
+    # cut candidate photos out of each screenshot for the reviewer
+    crop_ids: list[str] = []
+    for inbox_id in inbox_ids:
+        try:
+            crop_ids += photocrop.crop_photos(
+                db.INBOX_DIR / inbox_id, db.INBOX_DIR, Path(inbox_id).stem
+            )
+        except Exception:
+            pass  # cropping is best-effort; the screenshots still attach
+
     # find a likely existing match for the reviewer
     suggestion = None
     name = draft.get("display_name")
@@ -75,7 +88,16 @@ async def analyze(files: list[UploadFile] = File(...)):
             if row:
                 suggestion = dict(row)
 
-    return {"draft": draft, "inbox_ids": inbox_ids, "existing_match": suggestion}
+    return {"draft": draft, "inbox_ids": inbox_ids, "crop_ids": crop_ids, "existing_match": suggestion}
+
+
+@router.get("/inbox/{inbox_id}")
+def inbox_preview(inbox_id: str):
+    """Serve a pending upload or crop so the review panel can display it."""
+    path = (db.INBOX_DIR / inbox_id).resolve()
+    if not path.is_relative_to(db.INBOX_DIR.resolve()) or not path.is_file():
+        raise HTTPException(404, "not in inbox")
+    return FileResponse(path)
 
 
 @router.post("/commit", status_code=201)
@@ -92,21 +114,37 @@ def commit(body: CommitBody):
     )
     prospect_id = result["prospect_id"]
 
+    def attach(con, inbox_id: str, kind: str, portrait: bool) -> int | None:
+        src = (db.INBOX_DIR / inbox_id).resolve()
+        if not src.is_relative_to(db.INBOX_DIR.resolve()) or not src.exists():
+            return None
+        stem = re.sub(r"[^a-z0-9]+", "-", src.stem.lower())[:40] or "img"
+        rel = f"{prospect_id}/{stem}{src.suffix}"
+        dest = db.MEDIA_DIR / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(src), str(dest))
+        if portrait:
+            con.execute("UPDATE media SET is_portrait = 0 WHERE prospect_id = ?", (prospect_id,))
+        cur = con.execute(
+            "INSERT INTO media (prospect_id, path, kind, caption, is_portrait) VALUES (?,?,?,?,?)",
+            (prospect_id, rel, kind, "visual ingest", 1 if portrait else 0),
+        )
+        return cur.lastrowid
+
     attached = []
     with db.connect() as con:
+        for crop_id in body.crop_ids:
+            mid = attach(con, crop_id, "photo", crop_id == body.portrait_id)
+            if mid is not None:
+                attached.append(mid)
         for inbox_id in body.inbox_ids:
-            src = (db.INBOX_DIR / inbox_id).resolve()
-            if not src.is_relative_to(db.INBOX_DIR.resolve()) or not src.exists():
-                continue
-            stem = re.sub(r"[^a-z0-9]+", "-", src.stem.lower())[:40] or "img"
-            rel = f"{prospect_id}/{stem}{src.suffix}"
-            dest = db.MEDIA_DIR / rel
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(src), str(dest))
-            cur = con.execute(
-                "INSERT INTO media (prospect_id, path, kind, caption) VALUES (?,?,?,?)",
-                (prospect_id, rel, body.media_kind, "visual ingest"),
-            )
-            attached.append(cur.lastrowid)
+            mid = attach(con, inbox_id, body.media_kind, inbox_id == body.portrait_id)
+            if mid is not None:
+                attached.append(mid)
+
+    # discard crops the reviewer rejected
+    for leftover in db.INBOX_DIR.glob("*"):
+        if any(leftover.name.startswith(Path(i).stem + "-crop") for i in body.inbox_ids):
+            leftover.unlink(missing_ok=True)
 
     return {**result, "media_attached": len(attached)}

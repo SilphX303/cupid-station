@@ -41,12 +41,16 @@ export const api = {
     for (const f of files) fd.append('files', f)
     return req<AnalyzeResult>('/api/ingest/analyze', { method: 'POST', body: fd })
   },
+  setPortrait: (mediaId: number) =>
+    req<{ ok: boolean }>(`/api/media/${mediaId}/portrait`, { method: 'POST' }),
   ingestCommit: (body: {
     prospect: Record<string, unknown>
     match_name: string | null
     conversation_summary: string | null
     inbox_ids: string[]
     media_kind: string
+    crop_ids: string[]
+    portrait_id: string | null
   }) =>
     req<{ action: string; prospect_id: number; media_attached: number }>('/api/ingest/commit', {
       method: 'POST',

@@ -44,6 +44,18 @@ async def upload_media(
     return dict(row)
 
 
+@router.post("/media/{media_id}/portrait")
+def set_portrait(media_id: int):
+    """Mark one image as the prospect's portrait (clears any previous one)."""
+    with db.connect() as con:
+        row = con.execute("SELECT prospect_id FROM media WHERE id = ?", (media_id,)).fetchone()
+        if row is None:
+            raise HTTPException(404, "media not found")
+        con.execute("UPDATE media SET is_portrait = 0 WHERE prospect_id = ?", (row["prospect_id"],))
+        con.execute("UPDATE media SET is_portrait = 1 WHERE id = ?", (media_id,))
+    return {"ok": True, "media_id": media_id}
+
+
 @router.delete("/media/{media_id}", status_code=204)
 def delete_media(media_id: int):
     with db.connect() as con:

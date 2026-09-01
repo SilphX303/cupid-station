@@ -32,7 +32,8 @@ def list_prospects(include_archived: bool = False):
         for p in prospects:
             media = con.execute(
                 """SELECT id, path, kind FROM media WHERE prospect_id = ?
-                   ORDER BY CASE kind WHEN 'photo' THEN 0
+                   ORDER BY is_portrait DESC,
+                            CASE kind WHEN 'photo' THEN 0
                                       WHEN 'profile_screenshot' THEN 1
                                       ELSE 2 END, id LIMIT 1""",
                 (p["id"],),
