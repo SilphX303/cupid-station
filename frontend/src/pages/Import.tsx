@@ -155,6 +155,11 @@ function VisualScan() {
 
       {draft && scan && (
         <div className="space-y-3">
+          {scan.crop_ids.length === 0 && (
+            <p className="text-[10px] uppercase tracking-[0.16em] text-faint">
+              No photos could be cut out of this screenshot — the originals still attach below.
+            </p>
+          )}
           {scan.crop_ids.length > 0 && (
             <div>
               <div className="lcars-label mb-1">

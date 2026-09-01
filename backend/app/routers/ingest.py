@@ -6,10 +6,13 @@ Uploads wait in data/inbox/ between analyze and commit so nothing is lost
 if the user walks away mid-review.
 """
 import json
+import logging
 import re
 import shutil
 import uuid
 from pathlib import Path
+
+logger = logging.getLogger("uvicorn.error")
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
@@ -69,11 +72,14 @@ async def analyze(files: list[UploadFile] = File(...)):
     crop_ids: list[str] = []
     for inbox_id in inbox_ids:
         try:
-            crop_ids += photocrop.crop_photos(
+            found = photocrop.crop_photos(
                 db.INBOX_DIR / inbox_id, db.INBOX_DIR, Path(inbox_id).stem
             )
+            crop_ids += found
+            logger.info("photocrop: %s -> %d crop(s)", inbox_id, len(found))
         except Exception:
-            pass  # cropping is best-effort; the screenshots still attach
+            # cropping is best-effort — the screenshots still attach — but never silent
+            logger.exception("photocrop failed for %s", inbox_id)
 
     # find a likely existing match for the reviewer
     suggestion = None
